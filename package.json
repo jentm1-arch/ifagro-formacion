@@ -1,0 +1,8 @@
+{
+  "name": "ifagro-formacion",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "IF Agro — prototipo de plataforma de microformaciones agrícolas en audio",
+  "engines": { "node": ">=18" }
+}

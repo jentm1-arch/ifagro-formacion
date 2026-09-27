@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IF Agro — Microformaciones agrícolas</title>
+<meta name="description" content="Prototipo: convierte un PDF técnico en 3 píldoras formativas de audio y envíalas a los agricultores por Telegram.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f0c;
+    --surface: #161813;
+    --surface2: #1e2019;
+    --border: #2a2d24;
+    --accent: #b8e04a;
+    --accent2: #7db82a;
+    --text: #e8ead8;
+    --text-muted: #9a9d88;
+    --text-dim: #5d604c;
+    --danger: #e05a4a;
+    --warning: #e0a84a;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Sans', sans-serif; min-height: 100vh; line-height: 1.6;
+  }
+  a { color: var(--accent); }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 40px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: rgba(14,15,12,0.95);
+    backdrop-filter: blur(12px); z-index: 100;
+  }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--accent); letter-spacing: -0.5px; }
+  .logo span { color: var(--text-muted); font-style: italic; }
+  .header-badge {
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted);
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+  }
+
+  main {
+    max-width: 900px; margin: 0 auto; padding: 36px 24px 80px;
+    display: flex; flex-direction: column; gap: 28px;
+  }
+
+  /* HERO */
+  .hero h1 {
+    font-family: 'DM Serif Display', serif; font-weight: 400;
+    font-size: clamp(28px, 5vw, 40px); line-height: 1.15; letter-spacing: -0.5px;
+    text-wrap: balance;
+  }
+  .hero h1 em { color: var(--accent); }
+  .hero p { color: var(--text-muted); margin-top: 12px; max-width: 640px; font-size: 15px; }
+
+  .flow {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 22px;
+  }
+  .flow div {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px; font-size: 12px; color: var(--text-muted);
+  }
+  .flow b { display: block; color: var(--text); font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .flow .n { font-family: 'DM Mono', monospace; color: var(--accent); font-size: 11px; }
+
+  /* DEMO NOTICE */
+  .notice {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: rgba(224,168,74,0.07); border: 1px solid rgba(224,168,74,0.3);
+    border-radius: var(--radius); padding: 14px 16px; font-size: 13px; color: #e8d4b0;
+  }
+  .notice .ico { font-size: 18px; line-height: 1.3; }
+  .notice b { color: var(--warning); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; }
+  .card-title {
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+  label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+  input[type="text"] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 11px 14px;
+    outline: none; transition: border-color 0.2s;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  .field { margin-bottom: 16px; }
+
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 34px 20px;
+    text-align: center; cursor: pointer; transition: all 0.2s; position: relative;
+  }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(184,224,74,0.04); }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 30px; margin-bottom: 10px; display: block; }
+  .upload-label { font-size: 15px; color: var(--text); font-weight: 500; }
+  .upload-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  .upload-filename { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); margin-top: 10px; word-break: break-all; }
+
+  .or-row { display: flex; align-items: center; gap: 12px; margin: 14px 0 18px; color: var(--text-dim); font-size: 12px; }
+  .or-row::before, .or-row::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .sample-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px;
+    border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 14px;
+    font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: #0e0f0c; width: 100%; justify-content: center; font-size: 15px; padding: 14px; margin-top: 4px; }
+  .btn-primary:hover:not(:disabled) { background: #c8f05a; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-send { background: transparent; color: var(--accent); border: 1px solid var(--accent); width: 100%; justify-content: center; font-size: 15px; padding: 14px; }
+  .btn-send:hover:not(:disabled) { background: rgba(184,224,74,0.1); }
+  .btn-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .status { font-family: 'DM Mono', monospace; font-size: 12px; padding: 10px 14px; border-radius: var(--radius-sm); display: none; margin-top: 12px; }
+  .status.info { display: block; background: rgba(184,224,74,0.08); color: var(--accent); border: 1px solid rgba(184,224,74,0.2); }
+  .status.error { display: block; background: rgba(224,90,74,0.08); color: var(--danger); border: 1px solid rgba(224,90,74,0.2); }
+  .status.success { display: block; background: rgba(184,224,74,0.12); color: var(--accent); border: 1px solid rgba(184,224,74,0.3); }
+  .status.warn { display: block; background: rgba(224,168,74,0.08); color: var(--warning); border: 1px solid rgba(224,168,74,0.25); }
+  .spinner {
+    display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor;
+    border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite;
+    margin-right: 6px; vertical-align: -1px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* STEPS */
+  .steps { display: flex; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+  .step::after { content: ''; position: absolute; top: 14px; left: 50%; width: 100%; height: 1px; background: var(--border); z-index: 0; }
+  .step:last-child::after { display: none; }
+  .step-dot {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface);
+    display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--text-muted); position: relative; z-index: 1; transition: all 0.3s;
+  }
+  .step.active .step-dot { background: var(--accent); color: #0e0f0c; border-color: var(--accent); font-weight: 600; }
+  .step.done .step-dot { background: var(--accent2); color: #0e0f0c; border-color: var(--accent2); }
+  .step-label { font-size: 10px; color: var(--text-dim); margin-top: 6px; text-align: center; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; }
+  .step.active .step-label { color: var(--accent); }
+
+  /* CAPSULES */
+  .capsules-grid { display: flex; flex-direction: column; gap: 16px; }
+  .capsule-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; transition: border-color 0.2s; animation: fadeIn 0.4s ease forwards; opacity: 0;
+  }
+  .capsule-card:nth-child(2) { animation-delay: 0.12s; }
+  .capsule-card:nth-child(3) { animation-delay: 0.24s; }
+  @keyframes fadeIn { to { opacity: 1; } }
+  .capsule-card:hover { border-color: var(--accent2); }
+  .capsule-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+  .capsule-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); background: rgba(184,224,74,0.1); padding: 3px 8px; border-radius: 20px; }
+  .capsule-duration { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); }
+  .capsule-title { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); margin-bottom: 8px; line-height: 1.3; }
+  .capsule-text { font-size: 13.5px; color: var(--text-muted); line-height: 1.7; margin-bottom: 8px; }
+  .capsule-text.clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .toggle-text { background: none; border: none; color: var(--accent); font-size: 12px; cursor: pointer; font-family: 'DM Mono', monospace; margin-bottom: 14px; padding: 0; }
+
+  .audio-player { display: flex; align-items: center; gap: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; }
+  .play-btn {
+    width: 38px; height: 38px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s;
+    font-size: 14px; color: #0e0f0c;
+  }
+  .play-btn:hover { background: #c8f05a; transform: scale(1.05); }
+  .audio-progress { flex: 1; height: 4px; background: var(--border); border-radius: 2px; position: relative; cursor: pointer; }
+  .audio-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.1s; }
+  .audio-time { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); flex-shrink: 0; min-width: 70px; text-align: right; }
+  .audio-note { font-size: 11px; color: var(--warning); font-family: 'DM Mono', monospace; margin-top: 8px; }
+
+  .section-intro { font-size: 13.5px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.6; }
+
+  .empty-state { text-align: center; padding: 30px 20px; color: var(--text-dim); }
+  .empty-state .icon { font-size: 34px; margin-bottom: 10px; display: block; }
+  .empty-state p { font-size: 13px; }
+
+  /* RECEIVE (Telegram) */
+  .receive { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+  .receive ol { padding-left: 20px; font-size: 14px; color: var(--text-muted); }
+  .receive li { margin-bottom: 8px; }
+  .receive li b { color: var(--text); font-weight: 600; }
+  .qr-box { background: #fff; padding: 10px; border-radius: var(--radius-sm); width: 156px; height: 156px; display: flex; align-items: center; justify-content: center; }
+  .qr-box img, .qr-box canvas { display: block; }
+  .qr-caption { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--text-dim); text-align: center; margin-top: 8px; }
+  .tg-btn { background: #2aabee; color: #fff; margin-top: 8px; }
+  .tg-btn:hover { background: #3cb6f2; }
+
+  /* HISTORY */
+  .history-list { display: flex; flex-direction: column; gap: 10px; }
+  .history-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .history-item-title { font-size: 14px; font-weight: 500; }
+  .history-item-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); }
+  .history-empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 16px; }
+
+  footer { text-align: center; font-size: 12px; color: var(--text-dim); padding: 0 24px 40px; }
+  footer .stack { font-family: 'DM Mono', monospace; margin-top: 6px; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; left: auto; background: var(--surface2);
+    border: 1px solid var(--accent); border-radius: var(--radius); padding: 14px 20px;
+    font-size: 13px; color: var(--accent); font-family: 'DM Mono', monospace; z-index: 999;
+    transform: translateY(100px); opacity: 0; transition: all 0.3s; max-width: calc(100vw - 32px);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 640px) {
+    header { padding: 14px 16px; }
+    main { padding: 24px 16px 60px; gap: 22px; }
+    .card { padding: 20px 16px; }
+    .flow { grid-template-columns: 1fr 1fr; }
+    .receive { grid-template-columns: 1fr; }
+    .qr-wrap { display: none; }
+    .toast { right: 16px; bottom: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">IF<span>agro</span></div>
+  <div class="header-badge">Demo pública · v0.2</div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <h1>De un PDF técnico a <em>formación en audio</em> en el móvil del agricultor</h1>
+    <p>Un técnico sube un documento. La plataforma lo convierte en tres píldoras de audio, cortas y en lenguaje de campo, y las envía por Telegram a los agricultores. Pruébalo tú: únete al canal y recibe la formación en tu móvil.</p>
+    <div class="flow">
+      <div><span class="n">01</span><b>Sube un PDF</b>o usa el ejemplo</div>
+      <div><span class="n">02</span><b>La IA lo adapta</b>3 píldoras (Claude)</div>
+      <div><span class="n">03</span><b>Se pone voz</b>audio (ElevenLabs)</div>
+      <div><span class="n">04</span><b>Llega al móvil</b>vía Telegram</div>
+    </div>
+  </section>
+
+  <div class="notice" role="note">
+    <span class="ico">⏱</span>
+    <div><b>Versión de prueba con píldoras recortadas.</b> Esta demo funciona con servicios en su plan gratuito (o lo más económico posible), así que cada píldora dura unos 40 segundos. Con los servicios de pago, las formaciones durarán los <b>2–3 minutos por píldora</b> con los que está concebido el producto.</div>
+  </div>
+
+  <!-- RECIBIR -->
+  <div class="card" id="receive-card">
+    <div class="card-title">Antes de empezar · Recibe la formación en tu móvil</div>
+    <div class="receive">
+      <ol>
+        <li><b>Instala Telegram</b> en tu móvil si aún no lo tienes (gratis, en App Store o Google Play).</li>
+        <li><b>Escanea el código QR</b> con la cámara, o pulsa el botón si estás en el móvil.</li>
+        <li><b>Pulsa «Unirse»</b> en el canal. Cuando envíes la formación en el paso 4, te llegará al móvil como notificación.</li>
+      </ol>
+      <div class="qr-wrap">
+        <div class="qr-box" id="qr"></div>
+        <div class="qr-caption">Canal de prueba IF Agro</div>
+      </div>
+    </div>
+    <a class="btn tg-btn" id="tg-link" href="#" target="_blank" rel="noopener" style="display:none">✈ Abrir el canal en Telegram</a>
+    <div id="status-config" class="status"></div>
+  </div>
+
+  <div class="steps" aria-label="Progreso">
+    <div class="step active" id="step1"><div class="step-dot">1</div><div class="step-label">Crear</div></div>
+    <div class="step" id="step2"><div class="step-dot">2</div><div class="step-label">Generar</div></div>
+    <div class="step" id="step3"><div class="step-dot">3</div><div class="step-label">Revisar</div></div>
+    <div class="step" id="step4"><div class="step-dot">4</div><div class="step-label">Enviar</div></div>
+  </div>
+
+  <!-- CREAR -->
+  <div class="card">
+    <div class="card-title">1 · Nueva formación</div>
+    <div class="field">
+      <label for="training-title">Título de la formación</label>
+      <input type="text" id="training-title" placeholder="Ej: Pulverización segura de fitosanitarios" maxlength="120" />
+    </div>
+    <label>Contenido base</label>
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="pdf-input" accept=".pdf,application/pdf" aria-label="Seleccionar PDF" />
+      <span class="upload-icon">📄</span>
+      <div class="upload-label">Arrastra un PDF aquí o haz clic para seleccionarlo</div>
+      <div class="upload-hint">PDF con texto (no escaneado) · máx. 10 MB</div>
+      <div class="upload-filename" id="upload-filename"></div>
+    </div>
+    <div class="or-row">o, si no tienes un PDF a mano</div>
+    <div class="sample-row">
+      <button class="btn btn-secondary" type="button" onclick="useSample()">✦ Usar contenido de ejemplo</button>
+      <a class="btn btn-secondary" href="ejemplo-formacion.pdf" download>↓ Descargar PDF de ejemplo</a>
+    </div>
+    <div id="status-extract" class="status"></div>
+    <div style="margin-top:20px">
+      <button class="btn btn-primary" id="btn-generate" onclick="generateCapsules()" disabled>✦ Generar 3 píldoras formativas</button>
+    </div>
+    <div id="status-generate" class="status"></div>
+  </div>
+
+  <!-- PÍLDORAS -->
+  <div class="card" id="capsules-section">
+    <div class="card-title">2–3 · Píldoras formativas</div>
+    <div id="capsules-container">
+      <div class="empty-state"><span class="icon">🌱</span><p>Las píldoras aparecerán aquí para que las escuches y las revises antes de enviarlas</p></div>
+    </div>
+  </div>
+
+  <!-- ENVIAR -->
+  <div class="card" id="send-section">
+    <div class="card-title">4 · Enviar a los agricultores</div>
+    <p class="section-intro">Cuando las píldoras te convenzan, envíalas. Se publicarán en el canal de Telegram y cualquiera que se haya unido las recibirá en el móvil. En producción, cada técnico tendría su propio canal o grupo de agricultores.</p>
+    <button class="btn btn-send" id="btn-send" onclick="sendToReceptors()" disabled>↗ Enviar formación por Telegram</button>
+    <div id="status-send" class="status"></div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="card">
+    <div class="card-title">Tus últimas formaciones (en este navegador)</div>
+    <div id="history-list" class="history-list"><div class="history-empty">Aún no hay formaciones guardadas</div></div>
+  </div>
+
+</main>
+
+<footer>
+  Prototipo de producto · IF Agro
+  <div class="stack">PDF.js · Claude (Anthropic) · ElevenLabs · Telegram Bot API · Vercel</div>
+</footer>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+// ─── Contenido de ejemplo ────────────────────────────────────────
+const SAMPLE_TITLE = 'Pulverización segura de fitosanitarios';
+const SAMPLE_TEXT = `Guía práctica de buenas prácticas en la aplicación de productos fitosanitarios.
+
+1. Antes de tratar. Lea siempre la etiqueta del producto: indica la dosis, el cultivo autorizado, el plazo de seguridad hasta la cosecha y el equipo de protección necesario. Compruebe que el producto está registrado para su cultivo y para la plaga que quiere controlar. Revise la previsión meteorológica: no trate con viento superior a 3 metros por segundo, con temperaturas por encima de 25 grados ni si se espera lluvia en las próximas horas, porque el producto se pierde por deriva, evaporación o lavado.
+
+2. Calibración del equipo. Un pulverizador mal calibrado aplica de más o de menos. Al menos una vez por campaña, mida el caudal de cada boquilla con una probeta durante un minuto y sustituya las que se desvíen más de un 10 por ciento de la media. Ajuste la presión según la ficha de la boquilla y la velocidad de avance del tractor. Las boquillas antideriva reducen mucho las pérdidas en días con algo de aire. La inspección técnica periódica del equipo (ITEAF) es obligatoria.
+
+3. Protección personal. Use guantes de nitrilo, mono de protección química, botas de goma y mascarilla con filtro adecuado durante la preparación del caldo, que es el momento de mayor riesgo porque se manipula el producto concentrado. No coma, beba ni fume mientras trata. Al terminar, lave el equipo de protección por separado de la ropa de casa y dúchese.
+
+4. Después del tratamiento. Realice el triple enjuagado de los envases vacíos, vierta el agua del enjuague en el depósito y entregue los envases en un punto de recogida autorizado. Nunca los queme ni los entierre. Respete el plazo de reentrada a la parcela y el plazo de seguridad antes de cosechar. Anote cada tratamiento en el cuaderno de explotación: fecha, parcela, producto, dosis y plaga.
+
+5. Protección del agua y la biodiversidad. Respete las bandas de seguridad junto a cursos de agua indicadas en la etiqueta. No limpie el pulverizador cerca de pozos o acequias. Evite tratar en floración si el producto es tóxico para las abejas, y si es inevitable, hágalo al atardecer, cuando la actividad de los polinizadores es menor.`;
+
+// ─── Estado ──────────────────────────────────────────────────────
+let pdfText = '';
+let capsules = [];      // [{titulo, texto}]
+let audioBlobs = [];    // Blob | null (null = voz del navegador)
+let players = [];       // {audio?, speaking?}
+let busy = false;
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ─── Canal de Telegram (config pública) ──────────────────────────
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/config');
+    const cfg = await r.json();
+    if (cfg.telegramUrl) {
+      const link = document.getElementById('tg-link');
+      link.href = cfg.telegramUrl;
+      link.style.display = 'inline-flex';
+      if (window.QRCode) {
+        new QRCode(document.getElementById('qr'), { text: cfg.telegramUrl, width: 136, height: 136, colorDark: '#0e0f0c', colorLight: '#ffffff' });
+      }
+    } else {
+      document.querySelector('.qr-wrap').style.display = 'none';
+      setStatus('status-config', 'warn', 'El canal de Telegram aún no está configurado en el servidor.');
+    }
+  } catch {
+    document.querySelector('.qr-wrap').style.display = 'none';
+    setStatus('status-config', 'warn', 'No se pudo cargar la configuración. ¿Estás abriendo el archivo en local? La demo funciona desde su web publicada.');
+  }
+}
+
+// ─── Entrada de contenido ────────────────────────────────────────
+document.getElementById('pdf-input').addEventListener('change', e => handleFile(e.target.files[0]));
+
+async function handleFile(file) {
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { setStatus('status-extract', 'error', '✗ El PDF supera los 10 MB'); return; }
+  document.getElementById('upload-filename').textContent = '📎 ' + file.name;
+  if (!window.pdfjsLib) { setStatus('status-extract', 'error', '✗ No se pudo cargar el lector de PDF. Usa el contenido de ejemplo o recarga la página.'); return; }
+  setStatus('status-extract', 'info', '<span class="spinner"></span>Extrayendo texto del PDF...');
+  try {
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const content = await (await pdf.getPage(i)).getTextContent();
+      text += content.items.map(s => s.str).join(' ') + '\n';
+    }
+    pdfText = text.replace(/[ \t]+/g, ' ').trim();
+    if (pdfText.length < 50) throw new Error('No se encontró texto. ¿Es un PDF escaneado?');
+    const titleInput = document.getElementById('training-title');
+    if (!titleInput.value.trim()) titleInput.value = file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ');
+    setStatus('status-extract', 'success', `✓ PDF procesado · ${pdfText.length.toLocaleString('es-ES')} caracteres${pdfText.length > 6000 ? ' (se usarán los primeros 6.000)' : ''}`);
+  } catch (e) {
+    pdfText = '';
+    setStatus('status-extract', 'error', '✗ ' + e.message);
+  }
+  checkReady();
+}
+
+function useSample() {
+  pdfText = SAMPLE_TEXT;
+  document.getElementById('training-title').value = SAMPLE_TITLE;
+  document.getElementById('upload-filename').textContent = '📎 Contenido de ejemplo cargado';
+  setStatus('status-extract', 'success', `✓ Ejemplo cargado · ${SAMPLE_TEXT.length.toLocaleString('es-ES')} caracteres`);
+  checkReady();
+}
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name))) handleFile(f);
+  else setStatus('status-extract', 'error', '✗ El archivo debe ser un PDF');
+});
+document.getElementById('training-title').addEventListener('input', checkReady);
+
+function checkReady() {
+  const title = document.getElementById('training-title').value.trim();
+  document.getElementById('btn-generate').disabled = busy || !(title && pdfText);
+}
+
+// ─── Generación ──────────────────────────────────────────────────
+async function generateCapsules() {
+  const title = document.getElementById('training-title').value.trim();
+  busy = true; checkReady();
+  stopAll();
+  capsules = []; audioBlobs = []; players = [];
+  document.getElementById('btn-send').disabled = true;
+  setStatus('status-send', '', '');
+  updateStep(2);
+  setStatus('status-generate', 'info', '<span class="spinner"></span>Claude está adaptando el contenido a 3 píldoras... (unos 15–30 s)');
+
+  try {
+    const r = await fetch('/api/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, text: pdfText.slice(0, 6000) })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
+    capsules = data.capsulas;
+
+    let fallbackUsed = false;
+    for (let i = 0; i < capsules.length; i++) {
+      setStatus('status-generate', 'info', `<span class="spinner"></span>Poniendo voz a la píldora ${i + 1} de ${capsules.length}...`);
+      const blob = await generateAudio(capsules[i].texto);
+      if (!blob) fallbackUsed = true;
+      audioBlobs.push(blob);
+    }
+
+    renderCapsules();
+    updateStep(3);
+    if (fallbackUsed) {
+      setStatus('status-generate', 'warn', '⚠ Se agotaron los créditos gratuitos de voz de la demo: escucharás las píldoras con la voz de tu navegador, y a Telegram se enviarán como texto.');
+    } else {
+      setStatus('status-generate', 'success', '✓ Píldoras listas. Escúchalas y, si te convencen, envíalas en el paso 4.');
+    }
+    document.getElementById('btn-send').disabled = false;
+    saveToHistory(title);
+    document.getElementById('capsules-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    setStatus('status-generate', 'error', '✗ ' + esc(e.message));
+    updateStep(1);
+  } finally {
+    busy = false; checkReady();
+  }
+}
+
+async function generateAudio(text) {
+  try {
+    const r = await fetch('/api/tts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) return null;
+    return await r.blob();
+  } catch { return null; }
+}
+
+// ─── Render y reproducción ───────────────────────────────────────
+function renderCapsules() {
+  const container = document.getElementById('capsules-container');
+  container.innerHTML = '<div class="capsules-grid" id="capsules-grid"></div>';
+  const grid = document.getElementById('capsules-grid');
+
+  capsules.forEach((cap, i) => {
+    const words = cap.texto.split(/\s+/).length;
+    const secs = Math.round(words / 2.5);
+    const card = document.createElement('div');
+    card.className = 'capsule-card';
+    card.innerHTML = `
+      <div class="capsule-header">
+        <span class="capsule-num">Píldora ${i + 1}</span>
+        <span class="capsule-duration">~${secs} s · ${words} palabras</span>
+      </div>
+      <div class="capsule-title">${esc(cap.titulo)}</div>
+      <div class="capsule-text clamped" id="text-${i}">${esc(cap.texto)}</div>
+      <button class="toggle-text" onclick="toggleText(${i}, this)">Leer texto completo ▾</button>
+      <div class="audio-player">
+        <button class="play-btn" id="play-${i}" onclick="togglePlay(${i})" aria-label="Reproducir píldora ${i + 1}">▶</button>
+        <div class="audio-progress" onclick="seekAudio(event, ${i})"><div class="audio-fill" id="fill-${i}"></div></div>
+        <div class="audio-time" id="time-${i}">0:00 / 0:00</div>
+      </div>
+      ${audioBlobs[i] ? '' : '<div class="audio-note">Voz del navegador (sin créditos de ElevenLabs en la demo)</div>'}
+    `;
+    grid.appendChild(card);
+
+    if (audioBlobs[i]) {
+      const audio = new Audio(URL.createObjectURL(audioBlobs[i]));
+      players[i] = { audio };
+      audio.addEventListener('timeupdate', () => updateProgress(i));
+      audio.addEventListener('ended', () => { document.getElementById(`play-${i}`).textContent = '▶'; });
+      audio.addEventListener('loadedmetadata', () => { document.getElementById(`time-${i}`).textContent = `0:00 / ${fmt(audio.duration)}`; });
+    } else {
+      players[i] = { speaking: false };
+      document.getElementById(`time-${i}`).textContent = `~${fmt(secs)}`;
+    }
+  });
+}
+
+function toggleText(i, btn) {
+  const el = document.getElementById(`text-${i}`);
+  el.classList.toggle('clamped');
+  btn.textContent = el.classList.contains('clamped') ? 'Leer texto completo ▾' : 'Ocultar texto ▴';
+}
+
+function stopAll(except) {
+  players.forEach((p, j) => {
+    if (j === except || !p) return;
+    if (p.audio) p.audio.pause();
+    if (p.speaking) { speechSynthesis.cancel(); p.speaking = false; }
+    const b = document.getElementById(`play-${j}`); if (b) b.textContent = '▶';
+  });
+}
+
+function togglePlay(i) {
+  const p = players[i];
+  const btn = document.getElementById(`play-${i}`);
+  stopAll(i);
+  if (p.audio) {
+    if (p.audio.paused) { p.audio.play(); btn.textContent = '⏸'; }
+    else { p.audio.pause(); btn.textContent = '▶'; }
+    return;
+  }
+  // voz del navegador
+  if (p.speaking) { speechSynthesis.cancel(); p.speaking = false; btn.textContent = '▶'; return; }
+  const u = new SpeechSynthesisUtterance(capsules[i].titulo + '. ' + capsules[i].texto);
+  u.lang = 'es-ES';
+  const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.startsWith('es'));
+  if (v) u.voice = v;
+  u.onend = () => { p.speaking = false; btn.textContent = '▶'; };
+  speechSynthesis.speak(u);
+  p.speaking = true; btn.textContent = '⏸';
+}
+
+function updateProgress(i) {
+  const a = players[i].audio;
+  document.getElementById(`fill-${i}`).style.width = (a.currentTime / a.duration) * 100 + '%';
+  document.getElementById(`time-${i}`).textContent = `${fmt(a.currentTime)} / ${fmt(a.duration)}`;
+}
+
+function seekAudio(event, i) {
+  const a = players[i] && players[i].audio;
+  if (!a || !a.duration) return;
+  a.currentTime = (event.offsetX / event.currentTarget.offsetWidth) * a.duration;
+}
+
+function fmt(s) {
+  if (!s || isNaN(s) || !isFinite(s)) return '0:00';
+  return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+}
+
+// ─── Envío a Telegram ────────────────────────────────────────────
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(',')[1]);
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+}
+
+async function postTG(payload) {
+  const r = await fetch('/api/telegram', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
+}
+
+async function sendToReceptors() {
+  const title = document.getElementById('training-title').value.trim();
+  const btn = document.getElementById('btn-send');
+  btn.disabled = true;
+  updateStep(4);
+  try {
+    setStatus('status-send', 'info', '<span class="spinner"></span>Publicando en el canal...');
+    await postTG({ type: 'intro', title, total: capsules.length });
+    for (let i = 0; i < capsules.length; i++) {
+      setStatus('status-send', 'info', `<span class="spinner"></span>Enviando píldora ${i + 1} de ${capsules.length}...`);
+      await postTG({
+        type: 'pill', index: i + 1, pillTitle: capsules[i].titulo, text: capsules[i].texto,
+        audioBase64: audioBlobs[i] ? await blobToBase64(audioBlobs[i]) : null
+      });
+    }
+    setStatus('status-send', 'success', '✓ Formación enviada. Mira tu móvil: debería estar ya en el canal de Telegram.');
+    showToast('✓ Formación enviada a los agricultores');
+  } catch (e) {
+    setStatus('status-send', 'error', '✗ ' + esc(e.message));
+    btn.disabled = false;
+    updateStep(3);
+  }
+}
+
+// ─── Historial (solo en este navegador) ──────────────────────────
+function readHistory() {
+  try { return JSON.parse(localStorage.getItem('ifagro_history') || '[]'); } catch { return []; }
+}
+function saveToHistory(title) {
+  const h = readHistory();
+  h.unshift({ title, date: new Date().toLocaleDateString('es-ES'), capsulas: capsules.length });
+  try { localStorage.setItem('ifagro_history', JSON.stringify(h.slice(0, 3))); } catch {}
+  renderHistory();
+}
+function renderHistory() {
+  const h = readHistory();
+  const c = document.getElementById('history-list');
+  if (!h.length) { c.innerHTML = '<div class="history-empty">Aún no hay formaciones guardadas</div>'; return; }
+  c.innerHTML = h.map(x => `
+    <div class="history-item">
+      <div>
+        <div class="history-item-title">${esc(x.title)}</div>
+        <div class="history-item-meta">${x.capsulas} píldoras · ${esc(x.date)}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── Utilidades ──────────────────────────────────────────────────
+function setStatus(id, type, html) {
+  const el = document.getElementById(id);
+  el.className = 'status ' + type;
+  el.innerHTML = html;
+}
+function updateStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('step' + i).className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+  }
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+loadConfig();
+renderHistory();
+</script>
+</body>
+</html>
