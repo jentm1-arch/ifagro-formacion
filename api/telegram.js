@@ -1,6 +1,6 @@
 // Publica la formación en el canal de Telegram.
 // Recibe un mensaje por llamada: la cabecera de la formación o una píldora (con su audio).
-import { rateLimit, onlyPost, missingEnv } from './_lib.js';
+import { rateLimit, onlyPost, missingEnv, getBotUsername } from './_lib.js';
 
 const API = () => `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
@@ -39,6 +39,19 @@ export default async function handler(req, res) {
         text: `🌱 <b>Nueva formación: ${esc(String(title || '').slice(0, 200))}</b>\n\n` +
           `Te llegan ${Number(total) || 3} píldoras de audio. Escúchalas cuando puedas, en el campo o en el tractor.`,
       });
+      return res.status(200).json({ ok: true });
+    }
+
+    if (type === 'outro') {
+      const bot = await getBotUsername();
+      if (bot) {
+        await tg('sendMessage', {
+          chat_id,
+          parse_mode: 'HTML',
+          text: `❓ <b>¿Te ha quedado alguna duda?</b>\n\n` +
+            `Escríbele al asistente @${esc(bot)} con tu pregunta y te responde con un audio.`,
+        });
+      }
       return res.status(200).json({ ok: true });
     }
 

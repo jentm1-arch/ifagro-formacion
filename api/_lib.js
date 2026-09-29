@@ -24,6 +24,21 @@ export function rateLimit(req, key, max, windowMs) {
   return { ok: true };
 }
 
+// Nombre de usuario del bot (para invitar a hacer preguntas).
+// Se pide una vez a Telegram con el token y se guarda en memoria.
+let botUsername = null;
+export async function getBotUsername() {
+  if (botUsername) return botUsername;
+  if (process.env.TELEGRAM_BOT_USERNAME) return (botUsername = process.env.TELEGRAM_BOT_USERNAME.replace(/^@/, ''));
+  if (!process.env.TELEGRAM_BOT_TOKEN) return '';
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getMe`);
+    const d = await r.json();
+    if (d.ok && d.result?.username) botUsername = d.result.username;
+  } catch {}
+  return botUsername || '';
+}
+
 export function onlyPost(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');

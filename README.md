@@ -97,6 +97,14 @@ Si algo falla, el mensaje de error de la página indica qué falta. En Vercel ta
 
 ---
 
+## Preguntas de los agricultores (Make)
+
+Las dudas las resuelve un escenario de Make aparte, **IFAgro_Preguntas**: Telegram (mensaje privado al bot) → Claude (redacta la respuesta) → ElevenLabs (la convierte en audio) → Telegram (responde con el audio).
+
+- Tiene un filtro para responder **solo a chats privados**, de modo que no reacciona a lo que se publica en el canal.
+- Procesa los mensajes **en orden**, de uno en uno, para no pasarse del límite de audios simultáneos de ElevenLabs.
+- Al final de cada formación, la plataforma publica en el canal una invitación a escribirle al bot. La web también muestra un botón «Preguntar al asistente». El nombre del bot se obtiene automáticamente del token.
+
 ## Cómo se controla el gasto de la demo
 
 - **Píldoras recortadas:** cada una dura unos 40 segundos (entre 80 y 100 palabras), y la página avisa de ello.
